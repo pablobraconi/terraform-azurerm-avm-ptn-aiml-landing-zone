@@ -40,6 +40,7 @@ The following resources are used by this module:
 - [random_integer.zone_index](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/integer) (resource)
 - [random_string.name_suffix](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/string) (resource)
 - [random_uuid.telemetry](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/uuid) (resource)
+- [time_sleep.apim_ready](https://registry.terraform.io/providers/hashicorp/time/latest/docs/resources/sleep) (resource)
 - [time_sleep.purge_ai_foundry_cooldown](https://registry.terraform.io/providers/hashicorp/time/latest/docs/resources/sleep) (resource)
 - [time_sleep.wait_for_kv_rbac](https://registry.terraform.io/providers/hashicorp/time/latest/docs/resources/sleep) (resource)
 - [azapi_client_config.telemetry](https://registry.terraform.io/providers/Azure/azapi/latest/docs/data-sources/client_config) (data source)
@@ -2226,9 +2227,9 @@ Default: `null`
 
 ### <a name="input_use_internet_routing"></a> [use\_internet\_routing](#input\_use\_internet\_routing)
 
-Description: Use direct internet routing instead of firewall routing for subnets when platform landing zone is enabled.
+Description: Use direct internet routing instead of firewall routing for subnets when platform landing zone is not enabled.
 
-When set to true and `flag_platform_landing_zone` is true, route tables will use NextHopType = "Internet"  
+When set to true and `flag_platform_landing_zone` is false, route tables will use NextHopType = "Internet"  
 for 0.0.0.0/0 traffic instead of NextHopType = "VirtualAppliance" routing through the Azure Firewall.
 
 This setting is particularly useful for Azure Application Gateway v2 deployments that require direct  
@@ -2238,8 +2239,8 @@ internet connectivity and cannot use virtual appliance routing.
 from associated subnets, which may impact security posture. Ensure proper network security group rules  
 are in place when using this option.
 
-**Compatibility**: This setting only applies when `flag_platform_landing_zone = true`. When
-`flag_platform_landing_zone = false`, no route tables are created regardless of this setting.
+**Compatibility**: This setting only applies when `flag_platform_landing_zone = false`. When
+`flag_platform_landing_zone = true`, no route tables are created regardless of this setting.
 
 Type: `bool`
 
