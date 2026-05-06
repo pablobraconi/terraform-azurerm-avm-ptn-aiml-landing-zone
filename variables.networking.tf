@@ -708,6 +708,7 @@ DESCRIPTION
 
 variable "waf_policy_definition" {
   type = object({
+    deploy = optional(bool, true)
     name = optional(string)
     policy_settings = optional(object({
       enabled                  = optional(bool, true)

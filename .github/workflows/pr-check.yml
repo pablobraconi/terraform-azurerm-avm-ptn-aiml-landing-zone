@@ -1,9 +1,12 @@
 ---
 name: PR Check
+# AVM PR Check (apply + destroy de todos los examples/*) deshabilitado
+# para el lab. Solo se puede disparar manualmente desde Actions.
+# Para reactivar, agregar nuevamente:
+#   pull_request:
+#     types: ['opened', 'reopened', 'synchronize']
+#   merge_group:
 on:
-  pull_request:
-    types: ['opened', 'reopened', 'synchronize']
-  merge_group:
   workflow_dispatch:
 
 jobs:

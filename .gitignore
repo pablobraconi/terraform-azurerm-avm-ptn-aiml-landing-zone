@@ -52,3 +52,7 @@ avm.tflint_module.merged.hcl
 examples/*/policy
 *.mptfbackup
 .avm
+
+# Plan logs locales
+plan.txt
+
