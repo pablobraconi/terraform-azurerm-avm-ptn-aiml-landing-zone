@@ -150,8 +150,10 @@ module "test" {
         cosmos_db_connection = {
           new_resource_map_key = "cosmos1"
         }
+        # AI Search desplegado fuera del módulo en centralus por falta de capacidad en eastus2.
+        # El PE del Search vive en el VNet de la LZ en eastus2 (cross-region private endpoint).
         ai_search_connection = {
-          new_resource_map_key = "search1"
+          existing_resource_id = module.search_remote.resource_id
         }
         storage_account_connection = {
           new_resource_map_key = "storage1"
@@ -160,18 +162,8 @@ module "test" {
       }
     }
 
-    ai_search_definition = {
-      search1 = {
-        name                       = "${local.prefix}-search-${local.suffix}"
-        sku                        = "standard"
-        semantic_search_sku        = "standard"
-        semantic_search_enabled    = false
-        hosting_mode               = "default"
-        enable_diagnostic_settings = false
-        enable_telemetry           = true
-        role_assignments           = {}
-      }
-    }
+    # Search creado fuera del módulo (ver módulo `search_remote` más abajo).
+    ai_search_definition = {}
 
     cosmosdb_definition = {
       cosmos1 = {
@@ -311,4 +303,73 @@ module "test" {
     azure_policy_pe_zone_linking_enabled      = true
     existing_zones_resource_group_resource_id = "/subscriptions/4c7ae2e2-8d3e-4712-9b7d-04ccbdcc7e70/resourceGroups/rg-tfstate"
   }
+}
+
+############################################################
+# Azure AI Search desplegado en Central US por capacidad
+# (eastus2 no tiene cupo para SKU standard). El servicio
+# vive en centralus y el Private Endpoint se inyecta en el
+# PrivateEndpointSubnet del VNet de la LZ en eastus2.
+############################################################
+
+locals {
+  # Zona DNS privada para Azure AI Search (ya existe en rg-tfstate).
+  search_private_dns_zone_id = "/subscriptions/4c7ae2e2-8d3e-4712-9b7d-04ccbdcc7e70/resourceGroups/rg-tfstate/providers/Microsoft.Network/privateDnsZones/privatelink.search.windows.net"
+}
+
+resource "azurerm_resource_group" "search_remote" {
+  name     = "rg-${local.prefix}-search-cus"
+  location = "centralus"
+}
+
+module "search_remote" {
+  source  = "Azure/avm-res-search-searchservice/azurerm"
+  version = "0.2.0"
+
+  name                = "${local.prefix}-search-${local.suffix}"
+  location            = azurerm_resource_group.search_remote.location
+  resource_group_name = azurerm_resource_group.search_remote.name
+
+  sku                           = "standard"
+  replica_count                 = 1
+  partition_count               = 1
+  semantic_search_sku           = "standard"
+  local_authentication_enabled  = false
+  public_network_access_enabled = false
+  network_rule_bypass_option    = "AzureServices"
+
+  managed_identities = {
+    system_assigned = true
+  }
+
+  # El PE lo creamos manualmente en eastus2 (recurso `azurerm_private_endpoint`
+  # mas abajo), no aqui, porque el subnet destino esta en otra region.
+  private_endpoints = {}
+
+  enable_telemetry = var.enable_telemetry
+}
+
+# Private Endpoint del Search en eastus2 (subnet PrivateEndpointSubnet del VNet de la LZ).
+# Cross-region PE soportado por Azure: el trafico va por el backbone hacia centralus.
+resource "azurerm_private_endpoint" "search_pe_eastus2" {
+  name                = "pe-${local.prefix}-search"
+  location            = "eastus2"
+  resource_group_name = "rg-${local.prefix}-lab"
+  subnet_id           = module.test.subnet_resource_ids["PrivateEndpointSubnet"]
+
+  private_service_connection {
+    name                           = "psc-${local.prefix}-search"
+    private_connection_resource_id = module.search_remote.resource_id
+    subresource_names              = ["searchService"]
+    is_manual_connection           = false
+  }
+
+  # Con `azure_policy_pe_zone_linking_enabled = true` la zona se asocia por Azure
+  # Policy (mismo patron que el resto de PEs del modulo). Si tu suscripcion NO
+  # tiene esa policy activa para Search, descomenta el bloque siguiente:
+  #
+  # private_dns_zone_group {
+  #   name                 = "default"
+  #   private_dns_zone_ids = [local.search_private_dns_zone_id]
+  # }
 }

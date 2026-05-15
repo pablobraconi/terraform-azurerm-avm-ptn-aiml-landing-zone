@@ -12,3 +12,8 @@ output "virtual_network" {
   description = "The deployed virtual network in the AI PTN LZA."
   value       = length(var.vnet_definition.existing_byo_vnet) == 0 ? module.ai_lz_vnet[0] : null
 }
+
+output "subnet_resource_ids" {
+  description = "Map of subnet logical key (e.g. PrivateEndpointSubnet) to its Azure resource ID."
+  value       = local.subnet_ids
+}
